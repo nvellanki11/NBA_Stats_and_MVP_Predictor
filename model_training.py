@@ -2,7 +2,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
  
 from mvp_full_stats import mvp_stats_list
-from get_and_clean_data import full_stats_pd
+from get_and_clean_data import full_stats_pd, mvp_winners, stats2026_pd
 
 # Split data into training and testing sets
 from sklearn.model_selection import train_test_split
