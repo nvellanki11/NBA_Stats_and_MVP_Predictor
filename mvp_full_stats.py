@@ -21,6 +21,3 @@ for _, row in mvp_winners.iterrows():
 
 # List of advanced stats of mvp winners to be used as Y variable for model training; index reset to 0..n-1
 mvp_stats_list = pd.concat(mvp_stats_list, ignore_index=True)
-
-print(mvp_stats_list.Share)
-print(mvp_stats_list.loc[15])

@@ -22,6 +22,7 @@ mvp1_filepath = "/Users/nishantvellanki/Documents/NBA_MVP_Prediction/original_da
 mvp2_filepath = "/Users/nishantvellanki/Documents/NBA_MVP_Prediction/original_data/2010-2021 MVP Data.csv"
 mvp3_filepath = "/Users/nishantvellanki/Documents/NBA_MVP_Prediction/original_data/2022-2023 MVP Data.csv"
 
+# Cleaning and reuploading full player stats dataset
 full_stats_pd = pd.read_csv(stats_filepath, index_col=False)
 full_stats_pd = full_stats_pd.drop_duplicates(keep='last')
 full_stats_pd['Player'] = full_stats_pd['Player'].apply(remove_accents)
@@ -29,6 +30,7 @@ if not os.path.exists('cleaned_data/cleaned_full_stats.csv'): # save to a new fi
     full_stats_pd.to_csv('cleaned_data/cleaned_full_stats.csv', index=False)
 
 
+# Cleaning and reuploading MVP dataset 1 (2001-2010)
 mvp1_pd = pd.read_csv(mvp1_filepath, index_col=False)
 mvp1_pd = mvp1_pd.drop_duplicates(keep='last')
 mvp1_pd['Player'] = mvp1_pd['Player'].apply(remove_accents)
@@ -36,6 +38,7 @@ if not os.path.exists('cleaned_data/cleaned_first_mvp_set.csv'): # save to a new
     mvp1_pd.to_csv('cleaned_data/cleaned_first_mvp_set.csv', index=False)
 
 
+# Cleaning and reuploading MVP dataset 2 (2010-2021)
 mvp2_pd = pd.read_csv(mvp2_filepath, index_col=False)
 mvp2_pd = mvp2_pd.drop_duplicates(keep='last')
 mvp2_pd['Player'] = mvp2_pd['Player'].apply(remove_accents)
@@ -43,6 +46,7 @@ if not os.path.exists('cleaned_data/cleaned_second_mvp_set.csv'):
     mvp2_pd.to_csv('cleaned_data/cleaned_second_mvp_set.csv', index=False)
 
 
+# Cleaning and reuploading MVP dataset 3 (2022-2023)
 mvp3_pd = pd.read_csv(mvp3_filepath, index_col=False) #Not updated so not concated
 mvp3_pd = mvp3_pd.drop_duplicates(keep='last')
 mvp3_pd['Player'] = mvp3_pd['Player'].apply(remove_accents)
@@ -52,16 +56,35 @@ if not os.path.exists('cleaned_data/cleaned_third_mvp_set.csv'):
 # Concat and create a new 0..n-1 index; drop cross-file duplicates (e.g. 2010 appears in both mvp1 and mvp2)
 mvps_pd = pd.concat([mvp1_pd, mvp2_pd], ignore_index=True).drop_duplicates(keep='last')
 
+
+
+# Get 2025-26 stats from nba_api
 stats2026_pd = leaguedashplayerstats.LeagueDashPlayerStats(season='2025-26', per_mode_detailed='PerGame', measure_type_detailed_defense='Advanced', season_type_all_star='Regular Season')
 stats2026_pd = stats2026_pd.get_data_frames()[0]
+
+# Clean 2025-26 stats dataset
 stats2026_pd = stats2026_pd.drop_duplicates(keep='last')
 stats2026_pd = stats2026_pd.rename(columns={'PLAYER_NAME': 'Player', 'TEAM_ABBREVIATION': 'Tm'})
 stats2026_pd['Player'] = stats2026_pd['Player'].apply(remove_accents)
 stats2026_pd = stats2026_pd.drop(columns=['PLAYER_ID', 'TEAM_ID', 'NICKNAME'])
+
+# Adjust column names to match those in full_stats_pd
+col_mapping = {
+    'EFG_PCT':  'eFG%',
+    'TS_PCT':   'TS%',
+    'USG_PCT':  'USG%',
+    'OREB_PCT': 'ORB%',
+    'DREB_PCT': 'DRB%',
+    'REB_PCT':  'TRB%',
+    'AST_PCT':  'AST%',
+    'FGA':      'FGA',
+    'FG_PCT':   'FG%',
+}
+stats2026_pd = stats2026_pd.rename(columns=col_mapping)
+
 if not os.path.exists('cleaned_data/cleaned_2026_stats.csv'):
     stats2026_pd.to_csv('cleaned_data/cleaned_2026_stats.csv', index=False)
 
-# dataframes to be used
-full_stats_pd = pd.read_csv('cleaned_data/cleaned_full_stats.csv')
+
 # All winners of mvp award from 2001-2023 (AI-Embiid)
 mvp_winners = mvps_pd.loc[mvps_pd.Rank == "1"].reset_index(drop=True)
