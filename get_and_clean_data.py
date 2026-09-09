@@ -58,15 +58,28 @@ mvps_pd = pd.concat([mvp1_pd, mvp2_pd], ignore_index=True).drop_duplicates(keep=
 
 
 
-# Get 2025-26 stats from nba_api
-stats2026_pd = leaguedashplayerstats.LeagueDashPlayerStats(season='2025-26', per_mode_detailed='PerGame', measure_type_detailed_defense='Advanced', season_type_all_star='Regular Season')
-stats2026_pd = stats2026_pd.get_data_frames()[0]
+# Get 2025-26 stats from nba_api - Advanced measure type has the shooting-efficiency
+# and usage metrics, Base has the box-score counting stats. Neither has PER/WS/BPM/VORP;
+# those are Basketball-Reference-only metrics with no live-season nba_api equivalent.
+stats2026_advanced_pd = leaguedashplayerstats.LeagueDashPlayerStats(season='2025-26', per_mode_detailed='PerGame', measure_type_detailed_defense='Advanced', season_type_all_star='Regular Season')
+stats2026_advanced_pd = stats2026_advanced_pd.get_data_frames()[0]
+
+stats2026_base_pd = leaguedashplayerstats.LeagueDashPlayerStats(season='2025-26', per_mode_detailed='PerGame', measure_type_detailed_defense='Base', season_type_all_star='Regular Season')
+stats2026_base_pd = stats2026_base_pd.get_data_frames()[0]
+
+base_cols = ['PLAYER_ID', 'FG3M', 'FG3A', 'FG3_PCT', 'FT_PCT', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PTS']
+stats2026_pd = stats2026_advanced_pd.merge(stats2026_base_pd[base_cols], on='PLAYER_ID', how='left')
 
 # Clean 2025-26 stats dataset
 stats2026_pd = stats2026_pd.drop_duplicates(keep='last')
 stats2026_pd = stats2026_pd.rename(columns={'PLAYER_NAME': 'Player', 'TEAM_ABBREVIATION': 'Tm'})
 stats2026_pd['Player'] = stats2026_pd['Player'].apply(remove_accents)
 stats2026_pd = stats2026_pd.drop(columns=['PLAYER_ID', 'TEAM_ID', 'NICKNAME'])
+
+# Derive 2-point FG% from the base counting stats (nba_api doesn't expose it directly)
+two_pt_makes = stats2026_pd['FGM'] - stats2026_pd['FG3M']
+two_pt_attempts = stats2026_pd['FGA'] - stats2026_pd['FG3A']
+stats2026_pd['2P%'] = (two_pt_makes / two_pt_attempts).where(two_pt_attempts > 0)
 
 # Adjust column names to match those in full_stats_pd
 col_mapping = {
@@ -79,11 +92,16 @@ col_mapping = {
     'AST_PCT':  'AST%',
     'FGA':      'FGA',
     'FG_PCT':   'FG%',
+    'FG3_PCT':  '3P%',
+    'FT_PCT':   'FT%',
+    'REB':      'TRB',
+    'MIN':      'MP',
 }
 stats2026_pd = stats2026_pd.rename(columns=col_mapping)
 
-if not os.path.exists('cleaned_data/cleaned_2026_stats.csv'):
-    stats2026_pd.to_csv('cleaned_data/cleaned_2026_stats.csv', index=False)
+# Always refresh: unlike the historical datasets, this is live in-season data
+# that changes every time the pipeline runs.
+stats2026_pd.to_csv('cleaned_data/cleaned_2026_stats.csv', index=False)
 
 
 # All winners of mvp award from 2001-2023 (AI-Embiid)
