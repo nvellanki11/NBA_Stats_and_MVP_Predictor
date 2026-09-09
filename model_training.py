@@ -1,5 +1,5 @@
 from xgboost import XGBRegressor
-from sklearn.metrics import mean_squared_error
+from scipy.stats import spearmanr
 import pandas as pd
  
 from mvp_full_stats import mvp_stats_list
@@ -88,31 +88,47 @@ results = results.sort_values(by='Predicted Vote Share', ascending=False)
 # Display the results
 print(results)
 
-# Check error metrics on the test set
-y_pred_test = pipeline.predict(X_test)
-mse = mean_squared_error(y_test, y_pred_test)
-print(f'Mean Squared Error: {mse}')
+# MSE is a poor headline metric here: most player-seasons have Share = 0, so a
+# model that predicts near-zero everywhere scores well on MSE while being
+# useless for the thing we actually care about - ranking the MVP race. Instead,
+# evaluate on held-out seasons using two rank-aware metrics: whether the actual
+# MVP lands in the model's predicted top-3, and Spearman correlation restricted
+# to players who received any actual MVP votes (Share > 0).
+TOP_K = 3
 
-# Backtest: for each of the last ~10 historical seasons, compare the player the
-# model ranks #1 by predicted share against the player who actually won MVP.
-last_seasons = sorted(full_stats_pd['Year'].unique())[-10:]
+test_seasons_pd = full_stats_pd.iloc[test_idx]
+y_pred_test = pipeline.predict(X_test)
+test_results_pd = test_seasons_pd.assign(**{'Predicted Vote Share': y_pred_test})
 
 backtest_rows = []
-for season in last_seasons:
-    season_pd = full_stats_pd[full_stats_pd['Year'] == season]
-    season_pred_share = pipeline.predict(season_pd[overlap_features])
+for season, season_pd in test_results_pd.groupby('Year'):
+    actual_mvp = season_pd.loc[season_pd['Share'].idxmax(), 'Player']
+    top_k_players = season_pd.nlargest(TOP_K, 'Predicted Vote Share')['Player'].tolist()
 
-    predicted_mvp = season_pd.iloc[season_pred_share.argmax()]['Player']
-    actual_mvp = season_pd.iloc[season_pd['Share'].values.argmax()]['Player']
+    vote_getters = season_pd[season_pd['Share'] > 0]
+    if len(vote_getters) >= 2:
+        season_spearman = spearmanr(vote_getters['Share'], vote_getters['Predicted Vote Share']).statistic
+    else:
+        season_spearman = float('nan')
 
     backtest_rows.append({
         'Season': season,
-        'Predicted MVP': predicted_mvp,
         'Actual MVP': actual_mvp,
-        'Correct': predicted_mvp == actual_mvp,
+        f'Top-{TOP_K} Predicted': top_k_players,
+        'In Top-K': actual_mvp in top_k_players,
+        'Spearman (vote-getters)': season_spearman,
     })
 
 backtest_results = pd.DataFrame(backtest_rows)
 
 # Display the backtest results
 print(backtest_results)
+
+n_seasons = len(backtest_results)
+n_top_k_correct = backtest_results['In Top-K'].sum()
+mean_spearman = backtest_results['Spearman (vote-getters)'].mean()
+print(
+    f"\nCorrectly ranked the actual MVP in the predicted top-{TOP_K} in "
+    f"{n_top_k_correct} of {n_seasons} held-out seasons."
+)
+print(f"Mean Spearman correlation among vote-getters: {mean_spearman:.3f}")
