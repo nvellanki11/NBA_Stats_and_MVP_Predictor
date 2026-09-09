@@ -17,10 +17,13 @@ def remove_accents(text):
 all_stats_path = kagglehub.dataset_download("orelsorekml/nba-player-stats-including-mvp-share")
 mvps_path = kagglehub.dataset_download("parthdande/nba-mvp-voting-dataset-2000-2021")
 
-stats_filepath = "/Users/nishantvellanki/Documents/NBA_MVP_Prediction/original_data/NBA_stats_including_MVP.csv"
-mvp1_filepath = "/Users/nishantvellanki/Documents/NBA_MVP_Prediction/original_data/2001-2010 MVP Data.csv"
-mvp2_filepath = "/Users/nishantvellanki/Documents/NBA_MVP_Prediction/original_data/2010-2021 MVP Data.csv"
-mvp3_filepath = "/Users/nishantvellanki/Documents/NBA_MVP_Prediction/original_data/2022-2023 MVP Data.csv"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+original_data_dir = os.path.join(script_dir, "original_data")
+
+stats_filepath = os.path.join(original_data_dir, "NBA_stats_including_MVP.csv")
+mvp1_filepath = os.path.join(original_data_dir, "2001-2010 MVP Data.csv")
+mvp2_filepath = os.path.join(original_data_dir, "2010-2021 MVP Data.csv")
+mvp3_filepath = os.path.join(original_data_dir, "2022-2023 MVP Data.csv")
 
 # Cleaning and reuploading full player stats dataset
 full_stats_pd = pd.read_csv(stats_filepath, index_col=False)
